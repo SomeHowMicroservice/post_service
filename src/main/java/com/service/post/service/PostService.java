@@ -10,6 +10,7 @@ import com.service.post.RestoreManyRequest;
 import com.service.post.RestoreOneRequest;
 import com.service.post.TopicsAdminResponse;
 import com.service.post.UpdateTopicRequest;
+import com.service.post.entity.TopicEntity;
 
 public interface PostService {
   String createTopic(CreateTopicRequest request);
@@ -17,6 +18,8 @@ public interface PostService {
   TopicsAdminResponse getAllTopicsAdmin();
 
   TopicsAdminResponse getDeletedTopics();
+
+  List<TopicEntity> getAllTopics();
 
   void updateTopic(UpdateTopicRequest request);
 

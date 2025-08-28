@@ -150,6 +150,11 @@ public class PostServiceImpl implements PostService {
   }
 
   @Override
+  public List<TopicEntity> getAllTopics() {
+    return topicRepository.findAllByDeletedTopicIsFalse();
+  }
+
+  @Override
   @Transactional
   public void updateTopic(UpdateTopicRequest request) {
     TopicEntity topic = topicRepository.findByIdAndDeletedTopicFalse(request.getId())

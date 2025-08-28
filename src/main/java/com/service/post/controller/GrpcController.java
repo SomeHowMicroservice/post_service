@@ -1,5 +1,8 @@
 package com.service.post.controller;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.grpc.server.service.GrpcService;
 
 import com.service.post.CreatePostRequest;
@@ -12,10 +15,13 @@ import com.service.post.GetManyRequest;
 import com.service.post.PermanentlyDeleteManyRequest;
 import com.service.post.PermanentlyDeleteOneRequest;
 import com.service.post.PostServiceGrpc.PostServiceImplBase;
+import com.service.post.entity.TopicEntity;
 import com.service.post.RestoreManyRequest;
 import com.service.post.RestoreOneRequest;
 import com.service.post.RestoredResponse;
+import com.service.post.TopicResponse;
 import com.service.post.TopicsAdminResponse;
+import com.service.post.TopicsResponse;
 import com.service.post.UpdateTopicRequest;
 import com.service.post.UpdatedResponse;
 import com.service.post.exceptions.AlreadyExistsException;
@@ -65,9 +71,25 @@ public class GrpcController extends PostServiceImplBase {
     }
   }
 
+  @Override
   public void getDeletedTopics(GetManyRequest request, StreamObserver<TopicsAdminResponse> responseObserver) {
     try {
       TopicsAdminResponse convertedTopics = postService.getDeletedTopics();
+      responseObserver.onNext(convertedTopics);
+      responseObserver.onCompleted();
+      return;
+    } catch (Exception e) {
+      responseObserver.onError(Status.INTERNAL
+          .withDescription("lấy danh sách chủ đề đã xóa thất bại: " + e.getMessage()).asRuntimeException());
+    }
+  }
+
+  @Override
+  public void getAllTopics(GetManyRequest request, StreamObserver<TopicsResponse> responseObserver) {
+    try {
+      List<TopicEntity> topics = postService.getAllTopics();
+      System.out.println(topics.size());
+      TopicsResponse convertedTopics = toTopicsResponse(topics);
       responseObserver.onNext(convertedTopics);
       responseObserver.onCompleted();
       return;
@@ -205,5 +227,16 @@ public class GrpcController extends PostServiceImplBase {
       responseObserver
           .onError(Status.INTERNAL.withDescription("tạo bài viết thất bại: " + e.getMessage()).asRuntimeException());
     }
+  }
+
+  private TopicsResponse toTopicsResponse(List<TopicEntity> topics) {
+    List<TopicResponse> topicResponses = new ArrayList<>();
+    for (TopicEntity topic : topics) {
+      TopicResponse convertedTopic = TopicResponse.newBuilder().setId(topic.getId()).setName(topic.getName())
+          .setSlug(topic.getSlug()).build();
+      topicResponses.add(convertedTopic);
+    }
+
+    return TopicsResponse.newBuilder().addAllTopics(topicResponses).build();
   }
 }
