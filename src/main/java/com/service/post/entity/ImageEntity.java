@@ -28,7 +28,7 @@ public class ImageEntity {
   @Column(nullable = false, columnDefinition = "CHAR(36)")
   private String id;
   
-  @Column(nullable = false, length = 255)
+  @Column(nullable = true, length = 255)
   private String url;
 
   @Column(nullable = true, columnDefinition = "CHAR(24)")

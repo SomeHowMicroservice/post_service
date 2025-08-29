@@ -14,4 +14,5 @@ public class Base64UploadDto {
   private String base64Data;
   private String fileName;
   private String folder;
+  private String postId;
 }

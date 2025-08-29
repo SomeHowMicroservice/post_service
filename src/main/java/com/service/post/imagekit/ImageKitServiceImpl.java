@@ -19,6 +19,7 @@ public class ImageKitServiceImpl implements ImageKitService {
     try {
       FileCreateRequest request = new FileCreateRequest(dto.getBase64Data(), dto.getFileName());
       request.setFolder(dto.getFolder());
+      request.setUseUniqueFileName(false);
       return imageKit.upload(request);
     } catch (Exception e) {
       throw new RuntimeException("Upload ảnh thất bại: " + e.getMessage());

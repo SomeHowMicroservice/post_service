@@ -6,14 +6,18 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.service.post.BaseProfileResponse;
 import com.service.post.BaseUserResponse;
-import com.service.post.CreateImageRequest;
 import com.service.post.CreatePostRequest;
 import com.service.post.RestoreManyRequest;
 import com.service.post.RestoreOneRequest;
@@ -29,6 +33,7 @@ import com.service.post.exceptions.AlreadyExistsException;
 import com.service.post.exceptions.ResourceNotFoundException;
 import com.service.post.grpc_clients.UserClient;
 import com.service.post.mq.Publisher;
+import com.service.post.redis.RedisService;
 import com.service.post.CreateTopicRequest;
 import com.service.post.DeleteManyRequest;
 import com.service.post.DeleteOneRequest;
@@ -47,7 +52,8 @@ public class PostServiceImpl implements PostService {
   private final TopicRepository topicRepository;
   private final PostRepository postRepository;
   private final ImageRepository imageRepository;
-  private final Publisher publish;
+  private final RedisService redisService;
+  private final Publisher publisher;
   private final UserClient userClient;
 
   @Value("${spring.imagekit.url_endpoint}")
@@ -247,9 +253,8 @@ public class PostServiceImpl implements PostService {
   @Override
   @Transactional
   public String createPost(CreatePostRequest request) {
-    if (!topicRepository.existsById(request.getTopicId())) {
-      throw new ResourceNotFoundException("không tìm thấy chủ đề");
-    }
+    TopicEntity topic = topicRepository.findByIdAndDeletedTopicFalse(request.getTopicId())
+        .orElseThrow(() -> new ResourceNotFoundException("không tìm thấy chủ đề"));
 
     String slug = SlugUtil.toSlug(request.getTitle());
 
@@ -259,42 +264,49 @@ public class PostServiceImpl implements PostService {
 
     LocalDateTime publishedAt = request.getIsPublished() ? LocalDateTime.now() : null;
 
+    PostEntity post = PostEntity.builder().title(request.getTitle()).slug(slug).content(request.getContent())
+        .topic(topic).publishedPost(request.getIsPublished()).publishedAt(publishedAt).createdById(request.getUserId())
+        .updatedById(request.getUserId()).build();
+
+    postRepository.saveAndFlush(post);
+
     List<ImageEntity> images = new ArrayList<>();
 
-    for (CreateImageRequest img : request.getImagesList()) {
-      String ext = getExtension(img.getFileName()).toLowerCase();
-      if (ext.isEmpty()) {
-        ext = ".jpg";
-      }
+    Document doc = Jsoup.parse(request.getContent());
+    Elements imgTags = doc.select("img[src^=data:image]");
 
-      String fileName = String.format("%s-image%d%s", slug, img.getSortOrder(), ext);
-      String imageUrl = String.format("%s/%s/%s", imageKitUrlEndpoint, imageKitFolder, fileName);
+    int sortOrder = 1;
+    for (Element img : imgTags) {
+      String src = img.attr("src");
 
-      ImageEntity image = ImageEntity.builder().url(imageUrl).sortOrder(img.getSortOrder()).build();
-      imageRepository.save(image);
+      String ext = getExtension(src);
+
+      String fileName = String.format("%s-image_%d.%s", slug, sortOrder, ext);
+
+      ImageEntity image = ImageEntity.builder().sortOrder(sortOrder).post(post).build();
+      imageRepository.saveAndFlush(image);
       images.add(image);
 
-      Base64UploadDto uploadImageRequest = Base64UploadDto.builder().imageId(image.getId())
-          .base64Data(img.getBase64Data()).fileName(fileName).folder(imageKitFolder).build();
+      String base64Data = src.substring(src.indexOf(",") + 1);
 
-      publish.sendUploadImage(uploadImageRequest);
+      Base64UploadDto uploadImageRequest = Base64UploadDto.builder().imageId(image.getId()).fileName(fileName)
+          .folder(imageKitFolder).base64Data(base64Data).postId(post.getId()).build();
+      publisher.sendUploadImage(uploadImageRequest);
+
+      String redisKey = redisService.setKey(image.getId(), ":image:");
+      redisService.saveString(redisKey, src, 1, TimeUnit.MINUTES);
+
+      sortOrder++;
     }
-
-    PostEntity post = PostEntity.builder().title(request.getTitle()).slug(slug).content(request.getContent())
-        .publishedPost(request.getIsPublished()).publishedAt(publishedAt).createdById(request.getUserId())
-        .updatedById(request.getUserId()).images(images).build();
-
-    postRepository.save(post);
 
     return post.getId();
   }
 
-  private static String getExtension(String fileName) {
-    int lastDotIndex = fileName.lastIndexOf('.');
-    if (lastDotIndex > 0 && lastDotIndex < fileName.length() - 1) {
-      return fileName.substring(lastDotIndex);
-    }
-    return "";
+  private static String getExtension(String base64Src) {
+    String mimeType = base64Src.substring(base64Src.indexOf(":") + 1, base64Src.indexOf(";"));
+    String ext = mimeType.substring(mimeType.indexOf("/") + 1);
+
+    return ext;
   }
 
   private BaseUserResponse toBaseUserResponse(UserPublicResponse u) {

@@ -88,7 +88,6 @@ public class GrpcController extends PostServiceImplBase {
   public void getAllTopics(GetManyRequest request, StreamObserver<TopicsResponse> responseObserver) {
     try {
       List<TopicEntity> topics = postService.getAllTopics();
-      System.out.println(topics.size());
       TopicsResponse convertedTopics = toTopicsResponse(topics);
       responseObserver.onNext(convertedTopics);
       responseObserver.onCompleted();
