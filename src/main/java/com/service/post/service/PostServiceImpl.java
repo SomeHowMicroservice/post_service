@@ -28,6 +28,7 @@ import com.service.post.CreatePostRequest;
 import com.service.post.RestoreManyRequest;
 import com.service.post.RestoreOneRequest;
 import com.service.post.SimpleImageResponse;
+import com.service.post.SimpleTopicResponse;
 import com.service.post.TopicAdminResponse;
 import com.service.post.TopicResponse;
 import com.service.post.TopicsAdminResponse;
@@ -347,6 +348,7 @@ public class PostServiceImpl implements PostService {
   }
 
   @Override
+  @Transactional
   public PostAdminDetailsResponse getPostById(String id) {
     PostEntity post = postRepository.findByIdAndDeletedPostFalse(id)
         .orElseThrow(() -> new ResourceNotFoundException("không tìm thấy bài viết"));
@@ -363,8 +365,9 @@ public class PostServiceImpl implements PostService {
 
     PostAdminDetailsResponse.Builder postBuilder = PostAdminDetailsResponse.newBuilder().setId(post.getId())
         .setTitle(post.getTitle()).setSlug(post.getSlug()).setContent(post.getContent())
-        .setIsPublished(post.isPublishedPost()).setPublishedAt(post.getPublishedAt().toString())
-        .setCreatedAt(post.getCreatedAt().toString()).setUpdatedAt(post.getUpdatedAt().toString());
+        .setTopic(toSimpleTopicResponse(post.getTopic())).setIsPublished(post.isPublishedPost())
+        .setPublishedAt(post.getPublishedAt().toString()).setCreatedAt(post.getCreatedAt().toString())
+        .setUpdatedAt(post.getUpdatedAt().toString());
 
     if (usersMap.containsKey(post.getCreatedById())) {
       postBuilder.setCreatedBy(toBaseUserResponse(usersMap.get(post.getCreatedById())));
@@ -377,11 +380,16 @@ public class PostServiceImpl implements PostService {
     return postBuilder.build();
   }
 
-  private static String getExtension(String base64Src) {
+  private String getExtension(String base64Src) {
     String mimeType = base64Src.substring(base64Src.indexOf(":") + 1, base64Src.indexOf(";"));
     String ext = mimeType.substring(mimeType.indexOf("/") + 1);
 
     return ext;
+  }
+
+  private SimpleTopicResponse toSimpleTopicResponse(TopicEntity topic) {
+    return SimpleTopicResponse.newBuilder().setId(topic.getId()).setName(topic.getName())
+        .setIsDeleted(topic.isDeletedTopic()).build();
   }
 
   private PostAdminResponse toPostAdminResponse(PostEntity post) {

@@ -1,5 +1,8 @@
 package com.service.post.entity;
 
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -43,5 +46,6 @@ public class ImageEntity {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "post_id", nullable = false)
+  @OnDelete(action = OnDeleteAction.CASCADE)
   private PostEntity post;
 }
