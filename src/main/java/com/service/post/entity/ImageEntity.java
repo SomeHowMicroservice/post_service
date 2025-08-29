@@ -37,6 +37,10 @@ public class ImageEntity {
   @Column(nullable = false)
   private int sortOrder;
 
+  @Column(name = "is_thumbnail", nullable = false)
+  @Builder.Default
+  private boolean thumbnailImage = false;
+
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "post_id", nullable = false)
   private PostEntity post;

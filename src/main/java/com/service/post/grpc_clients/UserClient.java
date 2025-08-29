@@ -6,8 +6,8 @@ import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.service.user.GetUserByIdRequest;
-import com.service.user.GetUsersByIdRequest;
+import com.service.user.GetManyRequest;
+import com.service.user.GetOneRequest;
 import com.service.user.UserResponse;
 import com.service.user.UserServiceGrpc;
 import com.service.user.UsersPublicResponse;
@@ -35,13 +35,12 @@ public class UserClient extends BaseClient<UserServiceGrpc.UserServiceBlockingSt
   }
 
   public UserResponse getUserById(String id) {
-    return call(
-        s -> s.withDeadlineAfter(2, TimeUnit.SECONDS).getUserById(GetUserByIdRequest.newBuilder().setId(id).build()),
-        2);
+    return (UserResponse) call(s -> s.withDeadlineAfter(2, TimeUnit.SECONDS)
+        .getUserById(GetOneRequest.newBuilder().setId(id).build()), 2);
   }
 
   public UsersPublicResponse getUsersById(List<String> ids) {
-    GetUsersByIdRequest request = GetUsersByIdRequest.newBuilder().addAllIds(ids).build();
-    return call(s -> s.withDeadlineAfter(3, TimeUnit.SECONDS).getUsersById(request), 3);
+    GetManyRequest request = GetManyRequest.newBuilder().addAllIds(ids).build();
+    return (UsersPublicResponse) call(s -> s.withDeadlineAfter(3, TimeUnit.SECONDS).getUsersById(request), 3);
   }
 }

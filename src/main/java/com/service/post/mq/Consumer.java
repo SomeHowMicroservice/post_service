@@ -46,7 +46,7 @@ public class Consumer {
     imageRepository.save(image);
     log.info("Cập nhật hình ảnh có fileId: {} và url: {} thành công", fileId, url);
 
-    PostEntity post = postRepository.findByIdAndDeletedPostFalse(message.getPostId())
+    PostEntity post = postRepository.findByIdForUpdate(message.getPostId())
         .orElseThrow(() -> new ResourceNotFoundException("không tìm thấy bài viết"));
 
     String redisKey = redisService.setKey(message.getImageId(), ":image:");
@@ -61,7 +61,6 @@ public class Consumer {
     for (Element img : imgTags) {
       if (img.attr("src").equals(base64Src)) {
         img.attr("src", url);
-        break;
       }
     }
     post.setContent(doc.body().html());

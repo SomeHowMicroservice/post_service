@@ -11,9 +11,13 @@ import com.service.post.CreatedResponse;
 import com.service.post.DeleteManyRequest;
 import com.service.post.DeleteOneRequest;
 import com.service.post.DeletedResponse;
-import com.service.post.GetManyRequest;
+import com.service.post.GetAllPostsAdminRequest;
+import com.service.post.GetAllRequest;
+import com.service.post.GetOneRequest;
 import com.service.post.PermanentlyDeleteManyRequest;
 import com.service.post.PermanentlyDeleteOneRequest;
+import com.service.post.PostAdminDetailsResponse;
+import com.service.post.PostsAdminResponse;
 import com.service.post.PostServiceGrpc.PostServiceImplBase;
 import com.service.post.entity.TopicEntity;
 import com.service.post.RestoreManyRequest;
@@ -57,7 +61,7 @@ public class GrpcController extends PostServiceImplBase {
   }
 
   @Override
-  public void getAllTopicsAdmin(GetManyRequest request, StreamObserver<TopicsAdminResponse> responseObserver) {
+  public void getAllTopicsAdmin(GetAllRequest request, StreamObserver<TopicsAdminResponse> responseObserver) {
     try {
       TopicsAdminResponse convertedTopics = postService.getAllTopicsAdmin();
       responseObserver.onNext(convertedTopics);
@@ -72,7 +76,7 @@ public class GrpcController extends PostServiceImplBase {
   }
 
   @Override
-  public void getDeletedTopics(GetManyRequest request, StreamObserver<TopicsAdminResponse> responseObserver) {
+  public void getDeletedTopics(GetAllRequest request, StreamObserver<TopicsAdminResponse> responseObserver) {
     try {
       TopicsAdminResponse convertedTopics = postService.getDeletedTopics();
       responseObserver.onNext(convertedTopics);
@@ -85,7 +89,7 @@ public class GrpcController extends PostServiceImplBase {
   }
 
   @Override
-  public void getAllTopics(GetManyRequest request, StreamObserver<TopicsResponse> responseObserver) {
+  public void getAllTopics(GetAllRequest request, StreamObserver<TopicsResponse> responseObserver) {
     try {
       List<TopicEntity> topics = postService.getAllTopics();
       TopicsResponse convertedTopics = toTopicsResponse(topics);
@@ -225,6 +229,38 @@ public class GrpcController extends PostServiceImplBase {
     } catch (Exception e) {
       responseObserver
           .onError(Status.INTERNAL.withDescription("tạo bài viết thất bại: " + e.getMessage()).asRuntimeException());
+    }
+  }
+
+  @Override
+  public void getAllPostsAdmin(GetAllPostsAdminRequest request, StreamObserver<PostsAdminResponse> responseObserver) {
+    try {
+      PostsAdminResponse convertedTopics = postService.getAllPostsAdmin(request);
+      responseObserver.onNext(convertedTopics);
+      responseObserver.onCompleted();
+      return;
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
+    } catch (Exception e) {
+      responseObserver
+          .onError(Status.INTERNAL.withDescription("lấy danh sách bài viết thất bại: " + e.getMessage())
+              .asRuntimeException());
+    }
+  }
+
+  @Override
+  public void getPostById(GetOneRequest request, StreamObserver<PostAdminDetailsResponse> responseObserver) {
+    try {
+      PostAdminDetailsResponse convertedPost = postService.getPostById(request.getId());
+      responseObserver.onNext(convertedPost);
+      responseObserver.onCompleted();
+    } catch (ResourceNotFoundException e) {
+      responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asRuntimeException());
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
+    } catch (Exception e) {
+      responseObserver.onError(
+          Status.INTERNAL.withDescription("lấy thống tin bài viết thất bại: " + e.getMessage()).asRuntimeException());
     }
   }
 
