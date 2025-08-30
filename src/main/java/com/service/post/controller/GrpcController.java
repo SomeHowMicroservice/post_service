@@ -299,6 +299,67 @@ public class GrpcController extends PostServiceImplBase {
     }
   }
 
+  @Override
+  public void deletePosts(DeleteManyRequest request, StreamObserver<DeletedResponse> responseObserver) {
+    try {
+      postService.deletePosts(request);
+      DeletedResponse response = DeletedResponse.newBuilder().setSuccess(true).build();
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (ResourceNotFoundException e) {
+      responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asRuntimeException());
+    } catch (Exception e) {
+      responseObserver.onError(Status.INTERNAL
+          .withDescription("chuyển danh sách bài viết vào thùng rác thất bại: " + e.getMessage()).asRuntimeException());
+    }
+  }
+
+  @Override
+  public void restorePost(RestoreOneRequest request, StreamObserver<RestoredResponse> responseObserver) {
+    try {
+      postService.restorePost(request);
+      RestoredResponse response = RestoredResponse.newBuilder().setSuccess(true).build();
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (ResourceNotFoundException e) {
+      responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asRuntimeException());
+    } catch (Exception e) {
+      responseObserver.onError(
+          Status.INTERNAL.withDescription("khôi phục bài viết thất bại: " + e.getMessage()).asRuntimeException());
+    }
+  }
+
+  @Override
+  public void restorePosts(RestoreManyRequest request, StreamObserver<RestoredResponse> responseObserver) {
+    try {
+      postService.restorePosts(request);
+      RestoredResponse response = RestoredResponse.newBuilder().setSuccess(true).build();
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (ResourceNotFoundException e) {
+      responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asRuntimeException());
+    } catch (Exception e) {
+      responseObserver.onError(Status.INTERNAL
+          .withDescription("khôi phục danh sách bài viết thất bại: " + e.getMessage()).asRuntimeException());
+    }
+  }
+
+  @Override
+  public void permanentlyDeletePost(PermanentlyDeleteOneRequest request,
+      StreamObserver<DeletedResponse> responseObserver) {
+    try {
+      postService.permanentlyDeletePost(request.getId());
+      DeletedResponse response = DeletedResponse.newBuilder().setSuccess(true).build();
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (ResourceNotFoundException e) {
+      responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asRuntimeException());
+    } catch (Exception e) {
+      responseObserver
+          .onError(Status.INTERNAL.withDescription("xóa bài viết thất bại: " + e.getMessage()).asRuntimeException());
+    }
+  }
+
   private TopicsResponse toTopicsResponse(List<TopicEntity> topics) {
     List<TopicResponse> topicResponses = new ArrayList<>();
     for (TopicEntity topic : topics) {

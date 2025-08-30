@@ -490,6 +490,67 @@ public class PostServiceImpl implements PostService {
     postRepository.save(post);
   }
 
+  @Override
+  @Transactional
+  public void deletePosts(DeleteManyRequest request) {
+    List<PostEntity> posts = postRepository.findAllByIdInAndDeletedPostFalse(request.getIdsList());
+    if (posts.size() != request.getIdsCount()) {
+      throw new ResourceNotFoundException("Có bài viết không tìm thấy");
+    }
+
+    postRepository.updateIsDeletedAllById(request.getIdsList(), true, request.getUserId());
+  }
+
+  @Override
+  public void restorePost(RestoreOneRequest request) {
+    PostEntity post = postRepository.findByIdAndDeletedPostTrue(request.getId())
+        .orElseThrow(() -> new ResourceNotFoundException("không tìm thấy bài viết"));
+
+    post.setDeletedPost(false);
+
+    if (!post.getUpdatedById().equals(request.getUserId())) {
+      post.setUpdatedById(request.getUserId());
+    }
+
+    postRepository.save(post);
+  }
+
+  @Override
+  @Transactional
+  public void restorePosts(RestoreManyRequest request) {
+    List<PostEntity> posts = postRepository.findAllByIdInAndDeletedPostTrue(request.getIdsList());
+    if (posts.size() != request.getIdsCount()) {
+      throw new ResourceNotFoundException("Có bài viết không tìm thấy");
+    }
+
+    postRepository.updateIsDeletedAllById(request.getIdsList(), false, request.getUserId());
+  }
+
+  @Override
+  @Transactional
+  public void permanentlyDeletePost(String postId) {
+    PostEntity post = postRepository.findByIdAndDeletedPostTrue(postId)
+        .orElseThrow(() -> new ResourceNotFoundException("không tìm thấy bài viết"));
+
+    post.getImages().stream().map(ImageEntity::getFileId).forEach(publisher::sendDeleteImage);
+
+    postRepository.delete(post);
+  }
+
+  @Override
+  @Transactional
+  public void permanentlyDeletePosts(List<String> postIds) {
+    List<PostEntity> posts = postRepository.findAllByIdInAndDeletedPostTrue(postIds);
+    if (posts.size() != postIds.size()) {
+      throw new ResourceNotFoundException("Có bài viết không tìm thấy");
+    }
+
+    posts.stream().flatMap(post -> post.getImages().stream()).map(ImageEntity::getFileId)
+        .forEach(publisher::sendDeleteImage);
+
+    postRepository.deleteAll(posts);
+  }
+
   private String getExtension(String base64Src) {
     String mimeType = base64Src.substring(base64Src.indexOf(":") + 1, base64Src.indexOf(";"));
     String ext = mimeType.substring(mimeType.indexOf("/") + 1);

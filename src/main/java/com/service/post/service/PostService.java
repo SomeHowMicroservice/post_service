@@ -48,4 +48,14 @@ public interface PostService {
   void updatePost(UpdatePostRequest request);
 
   void deletePost(DeleteOneRequest request);
+
+  void deletePosts(DeleteManyRequest request);
+
+  void restorePost(RestoreOneRequest request);
+
+  void restorePosts(RestoreManyRequest request);
+
+  void permanentlyDeletePost(String postId);
+
+  void permanentlyDeletePosts(List<String> postIds);
 }
