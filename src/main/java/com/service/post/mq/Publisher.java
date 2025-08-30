@@ -16,4 +16,8 @@ public class Publisher {
   public void sendUploadImage(Base64UploadDto message) {
     rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE, RabbitMQConfig.UPLOAD_ROUTING_KEY, message);
   }
+
+  public void sendDeleteImage(String fileId) {
+    rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE, RabbitMQConfig.DELETE_ROUTING_KEY, fileId);
+  }
 }

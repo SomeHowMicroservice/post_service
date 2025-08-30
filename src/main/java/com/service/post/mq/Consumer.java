@@ -68,4 +68,10 @@ public class Consumer {
 
     log.info("Đã thay src ảnh {} thành {}", message.getImageId(), url);
   }
+
+  @RabbitListener(queues = RabbitMQConfig.DELETE_QUEUE_NAME)
+  public void deleteImageConsumer(String fileId) {
+    imageKitService.deleteImage(fileId);
+    log.info("Xóa hình ảnh có fileId: {} thành công", fileId);
+  }
 }

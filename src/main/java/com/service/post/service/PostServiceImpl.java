@@ -32,6 +32,7 @@ import com.service.post.SimpleTopicResponse;
 import com.service.post.TopicAdminResponse;
 import com.service.post.TopicResponse;
 import com.service.post.TopicsAdminResponse;
+import com.service.post.UpdatePostRequest;
 import com.service.post.UpdateTopicRequest;
 import com.service.post.common.SlugUtil;
 import com.service.post.dto.Base64UploadDto;
@@ -54,7 +55,7 @@ import com.service.post.PostsAdminResponse;
 import com.service.post.repository.ImageRepository;
 import com.service.post.repository.PostRepository;
 import com.service.post.repository.TopicRepository;
-import com.service.post.specification.PostSpecs;
+import com.service.post.specification.PostSpecification;
 import com.service.user.UserPublicResponse;
 import com.service.user.UsersPublicResponse;
 
@@ -274,7 +275,7 @@ public class PostServiceImpl implements PostService {
     String slug = SlugUtil.toSlug(request.getTitle());
 
     if (postRepository.existsBySlug(slug)) {
-      throw new AlreadyExistsException("slug bài viết đã tồn tại");
+      throw new AlreadyExistsException("tiêu đề bài viết đã tồn tại");
     }
 
     LocalDateTime publishedAt = request.getIsPublished() ? LocalDateTime.now() : null;
@@ -296,21 +297,21 @@ public class PostServiceImpl implements PostService {
 
       String ext = getExtension(src);
 
-      String fileName = String.format("%s-image_%d.%s", slug, sortOrder, ext);
-
       ImageEntity image = ImageEntity.builder().sortOrder(sortOrder).post(post)
-          .thumbnailImage(sortOrder == 1 ? true : false).build();
+          .thumbnailImage(sortOrder == 1).build();
       imageRepository.saveAndFlush(image);
       images.add(image);
 
+      String fileName = String.format("%s-%s_%d.%s", slug, image.getId(), sortOrder, ext);
+
       String base64Data = src.substring(src.indexOf(",") + 1);
+
+      String redisKey = redisService.setKey(image.getId(), ":image:");
+      redisService.saveString(redisKey, src, 1, TimeUnit.MINUTES);
 
       Base64UploadDto uploadImageRequest = Base64UploadDto.builder().imageId(image.getId()).fileName(fileName)
           .folder(imageKitFolder).base64Data(base64Data).postId(post.getId()).build();
       publisher.sendUploadImage(uploadImageRequest);
-
-      String redisKey = redisService.setKey(image.getId(), ":image:");
-      redisService.saveString(redisKey, src, 1, TimeUnit.MINUTES);
 
       sortOrder++;
     }
@@ -324,16 +325,15 @@ public class PostServiceImpl implements PostService {
     int page = request.getPage() > 0 ? request.getPage() - 1 : 0;
     int limit = request.getLimit() > 0 ? request.getLimit() : 10;
 
-    String sortField = (request.getSort() != null && !request.getSort().isEmpty())
-        ? request.getSort()
-        : "createdAt";
+    String sortField = (request.getSort() != null && !request.getSort().isEmpty()) ? request.getSort() : "createdAt";
     Sort.Direction direction = "asc".equalsIgnoreCase(request.getOrder()) ? Sort.Direction.ASC : Sort.Direction.DESC;
 
     Pageable pageable = PageRequest.of(page, limit, Sort.by(direction, sortField));
 
-    Specification<PostEntity> spec = PostSpecs.notDeleted().and(PostSpecs.topicNotDeleted())
-        .and(PostSpecs.hasTitleLike(request.getSearch())).and(PostSpecs.hasTopicId(request.getTopicId()))
-        .and(PostSpecs.hasPublished(request.hasIsPublished() ? request.getIsPublished() : null));
+    Specification<PostEntity> spec = PostSpecification.notDeleted()
+        .and(PostSpecification.hasTitleLike(request.getSearch()))
+        .and(PostSpecification.hasTopicId(request.getTopicId()))
+        .and(PostSpecification.hasPublished(request.hasIsPublished() ? request.getIsPublished() : null));
 
     Page<PostEntity> postsPage = postRepository.findAll(spec, pageable);
 
@@ -366,18 +366,128 @@ public class PostServiceImpl implements PostService {
     PostAdminDetailsResponse.Builder postBuilder = PostAdminDetailsResponse.newBuilder().setId(post.getId())
         .setTitle(post.getTitle()).setSlug(post.getSlug()).setContent(post.getContent())
         .setTopic(toSimpleTopicResponse(post.getTopic())).setIsPublished(post.isPublishedPost())
-        .setPublishedAt(post.getPublishedAt().toString()).setCreatedAt(post.getCreatedAt().toString())
-        .setUpdatedAt(post.getUpdatedAt().toString());
-
+        .setCreatedAt(post.getCreatedAt().toString()).setUpdatedAt(post.getUpdatedAt().toString());
+    if (post.getPublishedAt() != null) {
+      postBuilder.setPublishedAt(post.getPublishedAt().toString());
+    }
     if (usersMap.containsKey(post.getCreatedById())) {
       postBuilder.setCreatedBy(toBaseUserResponse(usersMap.get(post.getCreatedById())));
     }
-
     if (usersMap.containsKey(post.getUpdatedById())) {
       postBuilder.setUpdatedBy(toBaseUserResponse(usersMap.get(post.getUpdatedById())));
     }
 
     return postBuilder.build();
+  }
+
+  @Override
+  @Transactional
+  public void updatePost(UpdatePostRequest request) {
+    PostEntity post = postRepository.findByIdAndDeletedPostFalse(request.getId())
+        .orElseThrow(() -> new ResourceNotFoundException("không tìm thấy bài viết"));
+
+    if (request.hasTitle() && !request.getTitle().isEmpty() && !post.getTitle().equals(request.getTitle())) {
+      String slug = SlugUtil.toSlug(request.getTitle());
+
+      if (postRepository.existsBySlug(slug)) {
+        throw new AlreadyExistsException("tiêu đề bài viết đã tồn tại");
+      }
+
+      post.setTitle(request.getTitle());
+      post.setSlug(slug);
+    }
+
+    if (request.hasContent() && !request.getContent().isEmpty() && !post.getContent().equals(request.getContent())) {
+      post.setContent(request.getContent());
+
+      List<ImageEntity> oldImages = imageRepository.findByPostIdOrderBySortOrderAsc(post.getId());
+
+      Document doc = Jsoup.parse(request.getContent());
+      Elements imgTags = doc.select("img[src]");
+
+      int sortOrder = 1;
+      Set<String> usedImageIds = new HashSet<>();
+      String slug = post.getSlug();
+
+      for (Element img : imgTags) {
+        String src = img.attr("src");
+        if (src.startsWith("https")) {
+          ImageEntity existing = oldImages.stream().filter(imageEntity -> src.equals(imageEntity.getUrl())).findFirst()
+              .orElse(null);
+          if (existing != null) {
+            existing.setSortOrder(sortOrder);
+            existing.setThumbnailImage(sortOrder == 1);
+            imageRepository.save(existing);
+            usedImageIds.add(existing.getId());
+          }
+        } else if (src.startsWith("data:image")) {
+          ImageEntity newImage = ImageEntity.builder().sortOrder(sortOrder).thumbnailImage(sortOrder == 1).post(post)
+              .build();
+          imageRepository.save(newImage);
+
+          String ext = getExtension(src);
+          String fileName = String.format("%s-%s_%d.%s", slug, newImage.getId(), sortOrder, ext);
+          String base64Data = src.substring(src.indexOf(",") + 1);
+
+          String redisKey = redisService.setKey(newImage.getId(), ":image:");
+          redisService.saveString(redisKey, src, 1, TimeUnit.MINUTES);
+
+          Base64UploadDto uploadImageRequest = Base64UploadDto.builder().imageId(newImage.getId()).fileName(fileName)
+              .folder(imageKitFolder).base64Data(base64Data).postId(post.getId()).build();
+
+          publisher.sendUploadImage(uploadImageRequest);
+
+          usedImageIds.add(newImage.getId());
+        }
+
+        sortOrder++;
+      }
+
+      for (ImageEntity oldImage : oldImages) {
+        if (!usedImageIds.contains(oldImage.getId())) {
+          imageRepository.delete(oldImage);
+
+          publisher.sendDeleteImage(oldImage.getFileId());
+        }
+      }
+    }
+
+    if (request.hasTopicId() && !request.getTopicId().isEmpty()
+        && !post.getTopic().getId().equals(request.getTopicId())) {
+      TopicEntity topic = topicRepository.findByIdAndDeletedTopicFalse(request.getTopicId())
+          .orElseThrow(() -> new ResourceNotFoundException("không tìm thấy chủ đề"));
+
+      post.setTopic(topic);
+    }
+
+    if (request.hasIsPublished() && post.isPublishedPost() != request.getIsPublished()) {
+      post.setPublishedPost(request.getIsPublished());
+      if (request.getIsPublished()) {
+        post.setPublishedAt(LocalDateTime.now());
+      } else {
+        post.setPublishedAt(null);
+      }
+    }
+
+    if (!post.getUpdatedById().equals(request.getUserId())) {
+      post.setUpdatedById(request.getUserId());
+    }
+
+    postRepository.save(post);
+  }
+
+  @Override
+  public void deletePost(DeleteOneRequest request) {
+    PostEntity post = postRepository.findByIdAndDeletedPostFalse(request.getId())
+        .orElseThrow(() -> new ResourceNotFoundException("không tìm thấy bài viết"));
+
+    post.setDeletedPost(true);
+
+    if (!post.getUpdatedById().equals(request.getUserId())) {
+      post.setUpdatedById(request.getUserId());
+    }
+
+    postRepository.save(post);
   }
 
   private String getExtension(String base64Src) {
@@ -393,33 +503,19 @@ public class PostServiceImpl implements PostService {
   }
 
   private PostAdminResponse toPostAdminResponse(PostEntity post) {
-    TopicResponse topic = TopicResponse.newBuilder()
-        .setId(post.getTopic().getId())
-        .setName(post.getTopic().getName())
-        .setSlug(post.getTopic().getSlug())
-        .build();
+    TopicResponse topic = TopicResponse.newBuilder().setId(post.getTopic().getId()).setName(post.getTopic().getName())
+        .setSlug(post.getTopic().getSlug()).build();
 
-    ImageEntity thumb = post.getImages().stream()
-        .filter(ImageEntity::isThumbnailImage)
-        .findFirst()
-        .orElse(post.getImages().stream()
-            .sorted(Comparator.comparingInt(ImageEntity::getSortOrder))
-            .findFirst()
-            .orElse(null));
+    ImageEntity thumb = post.getImages().stream().filter(ImageEntity::isThumbnailImage).findFirst().orElse(
+        post.getImages().stream().sorted(Comparator.comparingInt(ImageEntity::getSortOrder)).findFirst().orElse(null));
 
     SimpleImageResponse thumbResponse = thumb != null
-        ? SimpleImageResponse.newBuilder()
-            .setId(thumb.getId())
-            .setUrl(thumb.getUrl() != null ? thumb.getUrl() : "")
+        ? SimpleImageResponse.newBuilder().setId(thumb.getId()).setUrl(thumb.getUrl() != null ? thumb.getUrl() : "")
             .build()
         : SimpleImageResponse.newBuilder().build();
 
-    return PostAdminResponse.newBuilder()
-        .setId(post.getId())
-        .setTitle(post.getTitle())
-        .setTopic(topic)
-        .setThumbnail(thumbResponse)
-        .build();
+    return PostAdminResponse.newBuilder().setId(post.getId()).setTitle(post.getTitle()).setTopic(topic)
+        .setThumbnail(thumbResponse).build();
   }
 
   private BaseUserResponse toBaseUserResponse(UserPublicResponse u) {

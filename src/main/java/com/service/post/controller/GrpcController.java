@@ -26,6 +26,7 @@ import com.service.post.RestoredResponse;
 import com.service.post.TopicResponse;
 import com.service.post.TopicsAdminResponse;
 import com.service.post.TopicsResponse;
+import com.service.post.UpdatePostRequest;
 import com.service.post.UpdateTopicRequest;
 import com.service.post.UpdatedResponse;
 import com.service.post.exceptions.AlreadyExistsException;
@@ -261,6 +262,40 @@ public class GrpcController extends PostServiceImplBase {
     } catch (Exception e) {
       responseObserver.onError(
           Status.INTERNAL.withDescription("lấy thống tin bài viết thất bại: " + e.getMessage()).asRuntimeException());
+    }
+  }
+
+  @Override
+  public void updatePost(UpdatePostRequest request, StreamObserver<UpdatedResponse> responseObserver) {
+    try {
+      postService.updatePost(request);
+      UpdatedResponse response = UpdatedResponse.newBuilder().setSuccess(true).build();
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (ResourceNotFoundException e) {
+      responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asRuntimeException());
+    } catch (AlreadyExistsException e) {
+      responseObserver.onError(Status.ALREADY_EXISTS.withDescription(e.getMessage()).asRuntimeException());
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
+    } catch (Exception e) {
+      responseObserver.onError(
+          Status.INTERNAL.withDescription("cập nhật bài viết thất bại: " + e.getMessage()).asRuntimeException());
+    }
+  }
+
+  @Override
+  public void deletePost(DeleteOneRequest request, StreamObserver<DeletedResponse> responseObserver) {
+    try {
+      postService.deletePost(request);
+      DeletedResponse response = DeletedResponse.newBuilder().setSuccess(true).build();
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (ResourceNotFoundException e) {
+      responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asRuntimeException());
+    } catch (Exception e) {
+      responseObserver.onError(Status.INTERNAL
+          .withDescription("chuyển bài viết vào thùng rác thất bại: " + e.getMessage()).asRuntimeException());
     }
   }
 

@@ -12,6 +12,7 @@ import com.service.post.PostsAdminResponse;
 import com.service.post.RestoreManyRequest;
 import com.service.post.RestoreOneRequest;
 import com.service.post.TopicsAdminResponse;
+import com.service.post.UpdatePostRequest;
 import com.service.post.UpdateTopicRequest;
 import com.service.post.entity.TopicEntity;
 
@@ -43,4 +44,8 @@ public interface PostService {
   PostsAdminResponse getAllPostsAdmin(GetAllPostsAdminRequest request);
 
   PostAdminDetailsResponse getPostById(String id);
+
+  void updatePost(UpdatePostRequest request);
+
+  void deletePost(DeleteOneRequest request);
 }
