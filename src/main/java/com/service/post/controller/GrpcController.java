@@ -402,7 +402,7 @@ public class GrpcController extends PostServiceImplBase {
     } catch (ResourceNotFoundException e) {
       responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asRuntimeException());
     } catch (Exception e) {
-      responseObserver.onError(Status.INTERNAL.withDescription("xóa danh sách chủ đề thất bại: " + e.getMessage())
+      responseObserver.onError(Status.INTERNAL.withDescription("xóa danh sách bài viết thất bại: " + e.getMessage())
           .asRuntimeException());
     }
   }
