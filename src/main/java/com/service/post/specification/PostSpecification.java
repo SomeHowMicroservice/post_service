@@ -9,6 +9,10 @@ public class PostSpecification {
     return (root, _, cb) -> cb.isFalse(root.get("deletedPost"));
   }
 
+  public static Specification<PostEntity> isDeleted() {
+    return (root, _, cb) -> cb.isTrue(root.get("deletedPost"));
+  }
+
   public static Specification<PostEntity> hasTitleLike(String search) {
     return (root, _, cb) -> (search == null || search.isEmpty())
         ? cb.conjunction()
@@ -25,9 +29,5 @@ public class PostSpecification {
     return (root, _, cb) -> (published == null)
         ? cb.conjunction()
         : cb.equal(root.get("publishedPost"), published);
-  }
-
-  public static Specification<PostEntity> topicNotDeleted() {
-    return (root, _, cb) -> cb.isFalse(root.get("topic").get("deletedTopic"));
   }
 }

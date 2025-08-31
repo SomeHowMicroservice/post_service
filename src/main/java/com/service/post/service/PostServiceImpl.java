@@ -551,6 +551,67 @@ public class PostServiceImpl implements PostService {
     postRepository.deleteAll(posts);
   }
 
+  @Override
+  @Transactional
+  public PostsAdminResponse getDeletedPosts(GetAllPostsAdminRequest request) {
+    int page = request.getPage() > 0 ? request.getPage() - 1 : 0;
+    int limit = request.getLimit() > 0 ? request.getLimit() : 10;
+
+    String sortField = (request.getSort() != null && !request.getSort().isEmpty()) ? request.getSort() : "createdAt";
+    Sort.Direction direction = "asc".equalsIgnoreCase(request.getOrder()) ? Sort.Direction.ASC : Sort.Direction.DESC;
+
+    Pageable pageable = PageRequest.of(page, limit, Sort.by(direction, sortField));
+
+    Specification<PostEntity> spec = PostSpecification.isDeleted()
+        .and(PostSpecification.hasTitleLike(request.getSearch()))
+        .and(PostSpecification.hasTopicId(request.getTopicId()))
+        .and(PostSpecification.hasPublished(request.hasIsPublished() ? request.getIsPublished() : null));
+
+    Page<PostEntity> postsPage = postRepository.findAll(spec, pageable);
+
+    List<PostAdminResponse> posts = postsPage.getContent().stream().map(this::toPostAdminResponse).toList();
+
+    PaginationMetaResponse meta = PaginationMetaResponse.newBuilder().setPage(postsPage.getNumber() + 1)
+        .setLimit(postsPage.getSize()).setTotal((int) postsPage.getTotalElements())
+        .setTotalPages(postsPage.getTotalPages()).setHasPrev(postsPage.hasPrevious()).setHasNext(postsPage.hasNext())
+        .build();
+
+    return PostsAdminResponse.newBuilder().addAllPosts(posts).setMeta(meta).build();
+  }
+
+  @Override
+  @Transactional
+  public PostAdminDetailsResponse getDeletedPostById(String id) {
+    PostEntity post = postRepository.findByIdAndDeletedPostTrue(id)
+        .orElseThrow(() -> new ResourceNotFoundException("không tìm thấy bài viết"));
+
+    Set<String> userIdSet = new HashSet<>();
+    userIdSet.add(post.getCreatedById());
+    userIdSet.add(post.getUpdatedById());
+    List<String> userIds = new ArrayList<>(userIdSet);
+
+    UsersPublicResponse usersRes = userClient.getUsersById(userIds);
+
+    Map<String, UserPublicResponse> usersMap = usersRes.getUsersList().stream()
+        .collect(Collectors.toMap(UserPublicResponse::getId, u -> u));
+
+    PostAdminDetailsResponse.Builder postBuilder = PostAdminDetailsResponse.newBuilder().setId(post.getId())
+        .setTitle(post.getTitle()).setSlug(post.getSlug()).setContent(post.getContent())
+        .setTopic(toSimpleTopicResponse(post.getTopic())).setIsPublished(post.isPublishedPost())
+        .setCreatedAt(post.getCreatedAt().toString()).setUpdatedAt(post.getUpdatedAt().toString());
+    if (post.getPublishedAt() != null) {
+      postBuilder.setPublishedAt(post.getPublishedAt().toString());
+    }
+    if (usersMap.containsKey(post.getCreatedById())) {
+      postBuilder.setCreatedBy(toBaseUserResponse(usersMap.get(post.getCreatedById())));
+    }
+    if (usersMap.containsKey(post.getUpdatedById())) {
+      postBuilder.setUpdatedBy(toBaseUserResponse(usersMap.get(post.getUpdatedById())));
+    }
+
+    return postBuilder.build();
+  }
+
   private String getExtension(String base64Src) {
     String mimeType = base64Src.substring(base64Src.indexOf(":") + 1, base64Src.indexOf(";"));
     String ext = mimeType.substring(mimeType.indexOf("/") + 1);

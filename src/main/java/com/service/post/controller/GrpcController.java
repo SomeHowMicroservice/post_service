@@ -99,7 +99,7 @@ public class GrpcController extends PostServiceImplBase {
       return;
     } catch (Exception e) {
       responseObserver.onError(Status.INTERNAL
-          .withDescription("lấy danh sách chủ đề đã xóa thất bại: " + e.getMessage()).asRuntimeException());
+          .withDescription("lấy danh sách chủ đề thất bại: " + e.getMessage()).asRuntimeException());
     }
   }
 
@@ -357,6 +357,37 @@ public class GrpcController extends PostServiceImplBase {
     } catch (Exception e) {
       responseObserver
           .onError(Status.INTERNAL.withDescription("xóa bài viết thất bại: " + e.getMessage()).asRuntimeException());
+    }
+  }
+
+  @Override
+  public void getDeletedPosts(GetAllPostsAdminRequest request, StreamObserver<PostsAdminResponse> responseObserver) {
+    try {
+      PostsAdminResponse convertedTopics = postService.getDeletedPosts(request);
+      responseObserver.onNext(convertedTopics);
+      responseObserver.onCompleted();
+      return;
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
+    } catch (Exception e) {
+      responseObserver.onError(Status.INTERNAL
+          .withDescription("lấy danh sách bài viết đã xóa thất bại: " + e.getMessage()).asRuntimeException());
+    }
+  }
+
+  @Override
+  public void getDeletedPostById(GetOneRequest request, StreamObserver<PostAdminDetailsResponse> responseObserver) {
+    try {
+      PostAdminDetailsResponse convertedPost = postService.getDeletedPostById(request.getId());
+      responseObserver.onNext(convertedPost);
+      responseObserver.onCompleted();
+    } catch (ResourceNotFoundException e) {
+      responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asRuntimeException());
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
+    } catch (Exception e) {
+      responseObserver.onError(
+          Status.INTERNAL.withDescription("lấy thống tin bài viết thất bại: " + e.getMessage()).asRuntimeException());
     }
   }
 

@@ -58,4 +58,8 @@ public interface PostService {
   void permanentlyDeletePost(String postId);
 
   void permanentlyDeletePosts(List<String> postIds);
+
+  PostsAdminResponse getDeletedPosts(GetAllPostsAdminRequest request);
+
+  PostAdminDetailsResponse getDeletedPostById(String id);
 }
