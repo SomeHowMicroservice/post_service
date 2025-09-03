@@ -325,7 +325,8 @@ public class PostServiceImpl implements PostService {
     int page = request.getPage() > 0 ? request.getPage() - 1 : 0;
     int limit = request.getLimit() > 0 ? request.getLimit() : 10;
 
-    String sortField = (request.getSort() != null && !request.getSort().isEmpty()) ? request.getSort() : "createdAt";
+    String sortField = (request.getSort() != null && !request.getSort().isEmpty()) ? snakeToCamel(request.getSort())
+        : "createdAt";
     Sort.Direction direction = "asc".equalsIgnoreCase(request.getOrder()) ? Sort.Direction.ASC : Sort.Direction.DESC;
 
     Pageable pageable = PageRequest.of(page, limit, Sort.by(direction, sortField));
@@ -617,6 +618,22 @@ public class PostServiceImpl implements PostService {
     String ext = mimeType.substring(mimeType.indexOf("/") + 1);
 
     return ext;
+  }
+
+  private String snakeToCamel(String field) {
+    StringBuilder result = new StringBuilder();
+    boolean upperNext = false;
+
+    for (char c : field.toCharArray()) {
+      if (c == '_') {
+        upperNext = true;
+      } else {
+        result.append(upperNext ? Character.toUpperCase(c) : c);
+        upperNext = false;
+      }
+    }
+
+    return result.toString();
   }
 
   private SimpleTopicResponse toSimpleTopicResponse(TopicEntity topic) {
