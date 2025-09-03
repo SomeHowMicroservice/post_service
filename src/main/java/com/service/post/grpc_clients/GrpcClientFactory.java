@@ -20,7 +20,8 @@ public class GrpcClientFactory {
   public <T> T getStub(String target, Function<ManagedChannel, T> stubFn) {
     ManagedChannel channel = channels.computeIfAbsent(target, t -> {
       log.info("Đang tạo kênh gRPC tới {}", t);
-      return ManagedChannelBuilder.forTarget(t).usePlaintext().enableRetry().maxRetryAttempts(3)
+      return ManagedChannelBuilder.forTarget(t).usePlaintext().keepAliveTime(5, TimeUnit.MINUTES)
+          .keepAliveTimeout(20, TimeUnit.SECONDS).keepAliveWithoutCalls(true).enableRetry().maxRetryAttempts(3)
           .idleTimeout(5, TimeUnit.MINUTES).build();
     });
     return stubFn.apply(channel);
