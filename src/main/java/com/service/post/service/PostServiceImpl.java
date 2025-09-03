@@ -558,7 +558,8 @@ public class PostServiceImpl implements PostService {
     int page = request.getPage() > 0 ? request.getPage() - 1 : 0;
     int limit = request.getLimit() > 0 ? request.getLimit() : 10;
 
-    String sortField = (request.getSort() != null && !request.getSort().isEmpty()) ? request.getSort() : "createdAt";
+    String sortField = (request.getSort() != null && !request.getSort().isEmpty()) ? snakeToCamel(request.getSort())
+        : "createdAt";
     Sort.Direction direction = "asc".equalsIgnoreCase(request.getOrder()) ? Sort.Direction.ASC : Sort.Direction.DESC;
 
     Pageable pageable = PageRequest.of(page, limit, Sort.by(direction, sortField));
