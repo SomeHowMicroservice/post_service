@@ -11,5 +11,7 @@ public interface RedisService {
 
   void updateString(String key, String content);
 
+  int decrement(String key);
+
   void deleteString(String key);
 }

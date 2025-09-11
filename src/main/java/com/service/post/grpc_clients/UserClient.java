@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 
 import com.service.user.GetManyRequest;
 import com.service.user.GetOneRequest;
-import com.service.user.UserResponse;
+import com.service.user.UserPublicResponse;
 import com.service.user.UserServiceGrpc;
 import com.service.user.UsersPublicResponse;
 
@@ -34,13 +34,13 @@ public class UserClient extends BaseClient<UserServiceGrpc.UserServiceBlockingSt
     stub = factory.getStub(target, UserServiceGrpc::newBlockingStub);
   }
 
-  public UserResponse getUserById(String id) {
-    return (UserResponse) call(s -> s.withDeadlineAfter(2, TimeUnit.SECONDS)
-        .getUserById(GetOneRequest.newBuilder().setId(id).build()), 2);
+  public UserPublicResponse getUserPublicById(String id) {
+    return (UserPublicResponse) call(s -> s.withDeadlineAfter(2, TimeUnit.SECONDS)
+        .getUserPublicById(GetOneRequest.newBuilder().setId(id).build()), 2);
   }
 
-  public UsersPublicResponse getUsersById(List<String> ids) {
+  public UsersPublicResponse getUsersPublicById(List<String> ids) {
     GetManyRequest request = GetManyRequest.newBuilder().addAllIds(ids).build();
-    return (UsersPublicResponse) call(s -> s.withDeadlineAfter(3, TimeUnit.SECONDS).getUsersById(request), 3);
+    return (UsersPublicResponse) call(s -> s.withDeadlineAfter(3, TimeUnit.SECONDS).getUsersPublicById(request), 3);
   }
 }

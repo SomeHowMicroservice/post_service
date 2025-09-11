@@ -1,5 +1,7 @@
 package com.service.post.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -9,12 +11,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Getter
 @Builder
-public class Base64UploadDto {
-  private String imageId;
-  private String base64Data;
-  private String fileName;
-  private String folder;
-  private String postId;
-  private int totalImages;
+public class ImageUploadedDto {
+  private String service;
+
+  @JsonProperty("user_id")
   private String userId;
 }

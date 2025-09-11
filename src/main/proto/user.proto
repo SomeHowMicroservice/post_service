@@ -6,19 +6,9 @@ option java_package = "com.service.user";
 option java_outer_classname = "UserProtobuf";
 
 service UserService {
-  rpc GetUserById(GetOneRequest) returns (UserResponse);
+  rpc GetUserPublicById(GetOneRequest) returns (UserPublicResponse);
 
-  rpc GetUsersById(GetManyRequest) returns (UsersPublicResponse);
-}
-
-message UserResponse {
-  string id = 1;
-  string username = 2;
-  string email = 3;
-  repeated string roles = 4;
-  string password = 5;
-  string created_at = 6;
-  ProfileResponse profile = 7;
+  rpc GetUsersPublicById(GetManyRequest) returns (UsersPublicResponse);
 }
 
 message GetOneRequest {

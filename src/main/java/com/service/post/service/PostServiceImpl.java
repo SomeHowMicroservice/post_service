@@ -108,7 +108,7 @@ public class PostServiceImpl implements PostService {
     }
     List<String> userIds = new ArrayList<>(userIdSet);
 
-    UsersPublicResponse usersRes = userClient.getUsersById(userIds);
+    UsersPublicResponse usersRes = userClient.getUsersPublicById(userIds);
 
     Map<String, UserPublicResponse> usersMap = usersRes.getUsersList().stream()
         .collect(Collectors.toMap(UserPublicResponse::getId, u -> u));
@@ -147,7 +147,7 @@ public class PostServiceImpl implements PostService {
     }
     List<String> userIds = new ArrayList<>(userIdSet);
 
-    UsersPublicResponse usersRes = userClient.getUsersById(userIds);
+    UsersPublicResponse usersRes = userClient.getUsersPublicById(userIds);
 
     Map<String, UserPublicResponse> usersMap = usersRes.getUsersList().stream()
         .collect(Collectors.toMap(UserPublicResponse::getId, u -> u));
@@ -291,6 +291,10 @@ public class PostServiceImpl implements PostService {
     Document doc = Jsoup.parse(request.getContent());
     Elements imgTags = doc.select("img[src^=data:image]");
 
+    long newImages = imgTags.size();
+    String qImgRedisKey = redisService.setKey(post.getId(), ":image:");
+    redisService.saveString(qImgRedisKey, String.valueOf(newImages), 1, TimeUnit.MINUTES);
+
     int sortOrder = 1;
     for (Element img : imgTags) {
       String src = img.attr("src");
@@ -310,7 +314,8 @@ public class PostServiceImpl implements PostService {
       redisService.saveString(redisKey, src, 1, TimeUnit.MINUTES);
 
       Base64UploadDto uploadImageRequest = Base64UploadDto.builder().imageId(image.getId()).fileName(fileName)
-          .folder(imageKitFolder).base64Data(base64Data).postId(post.getId()).build();
+          .folder(imageKitFolder).base64Data(base64Data).postId(post.getId()).userId(request.getUserId())
+          .totalImages(imgTags.size()).build();
       publisher.sendUploadImage(uploadImageRequest);
 
       sortOrder++;
@@ -359,7 +364,7 @@ public class PostServiceImpl implements PostService {
     userIdSet.add(post.getUpdatedById());
     List<String> userIds = new ArrayList<>(userIdSet);
 
-    UsersPublicResponse usersRes = userClient.getUsersById(userIds);
+    UsersPublicResponse usersRes = userClient.getUsersPublicById(userIds);
 
     Map<String, UserPublicResponse> usersMap = usersRes.getUsersList().stream()
         .collect(Collectors.toMap(UserPublicResponse::getId, u -> u));
@@ -406,6 +411,11 @@ public class PostServiceImpl implements PostService {
       Document doc = Jsoup.parse(request.getContent());
       Elements imgTags = doc.select("img[src]");
 
+      long totalNewImages = imgTags.stream().filter(img -> img.attr("src").startsWith("data:image")).count();
+
+      String qImgRedisKey = redisService.setKey(request.getId(), ":image:");
+      redisService.saveString(qImgRedisKey, String.valueOf(totalNewImages), 1, TimeUnit.MINUTES);
+
       int sortOrder = 1;
       Set<String> usedImageIds = new HashSet<>();
       String slug = post.getSlug();
@@ -434,7 +444,8 @@ public class PostServiceImpl implements PostService {
           redisService.saveString(redisKey, src, 1, TimeUnit.MINUTES);
 
           Base64UploadDto uploadImageRequest = Base64UploadDto.builder().imageId(newImage.getId()).fileName(fileName)
-              .folder(imageKitFolder).base64Data(base64Data).postId(post.getId()).build();
+              .folder(imageKitFolder).base64Data(base64Data).postId(post.getId()).totalImages((int) totalNewImages)
+              .userId(request.getUserId()).build();
 
           publisher.sendUploadImage(uploadImageRequest);
 
@@ -592,7 +603,7 @@ public class PostServiceImpl implements PostService {
     userIdSet.add(post.getUpdatedById());
     List<String> userIds = new ArrayList<>(userIdSet);
 
-    UsersPublicResponse usersRes = userClient.getUsersById(userIds);
+    UsersPublicResponse usersRes = userClient.getUsersPublicById(userIds);
 
     Map<String, UserPublicResponse> usersMap = usersRes.getUsersList().stream()
         .collect(Collectors.toMap(UserPublicResponse::getId, u -> u));

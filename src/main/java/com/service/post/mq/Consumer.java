@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import com.service.post.config.RabbitMQConfig;
 import com.service.post.dto.Base64UploadDto;
+import com.service.post.dto.ImageUploadedDto;
 import com.service.post.entity.ImageEntity;
 import com.service.post.entity.PostEntity;
 import com.service.post.exceptions.ResourceNotFoundException;
@@ -19,17 +20,21 @@ import com.service.post.repository.PostRepository;
 
 import io.imagekit.sdk.models.results.Result;
 import jakarta.transaction.Transactional;
+import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 
 @Component
 @Slf4j
 @RequiredArgsConstructor
+@FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
 public class Consumer {
-  private final ImageKitService imageKitService;
-  private final ImageRepository imageRepository;
-  private final PostRepository postRepository;
-  private final RedisService redisService;
+  ImageKitService imageKitService;
+  ImageRepository imageRepository;
+  PostRepository postRepository;
+  RedisService redisService;
+  Publisher publisher;
 
   @Transactional
   @RabbitListener(queues = RabbitMQConfig.UPLOAD_QUEUE_NAME)
@@ -49,8 +54,8 @@ public class Consumer {
     PostEntity post = postRepository.findByIdForUpdate(message.getPostId())
         .orElseThrow(() -> new ResourceNotFoundException("không tìm thấy bài viết"));
 
-    String redisKey = redisService.setKey(message.getImageId(), ":image:");
-    String base64Src = redisService.getString(redisKey);
+    String base64RedisKey = redisService.setKey(message.getImageId(), ":image:");
+    String base64Src = redisService.getString(base64RedisKey);
     if (base64Src == null) {
       log.warn("Không tìm thấy src gốc trong Redis cho imageId {}", message.getImageId());
       return;
@@ -67,6 +72,20 @@ public class Consumer {
     postRepository.save(post);
 
     log.info("Đã thay src ảnh {} thành {}", message.getImageId(), url);
+
+    String qImgRedisKey = redisService.setKey(message.getPostId(), ":image:");
+    int qImgPending = redisService.decrement(qImgRedisKey);
+
+    log.info("Ảnh {} của post {} đã upload xong ({}/{})", message.getImageId(), message.getPostId(), qImgPending,
+        message.getTotalImages());
+
+    if (qImgPending == 0) {
+      ImageUploadedDto uploadedMess = ImageUploadedDto.builder().service("post").userId(message.getUserId()).build();
+      publisher.sendUploadedAllImages(uploadedMess);
+      redisService.deleteString(qImgRedisKey);
+    }
+
+    redisService.deleteString(base64RedisKey);
   }
 
   @RabbitListener(queues = RabbitMQConfig.DELETE_QUEUE_NAME)

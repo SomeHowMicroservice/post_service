@@ -35,6 +35,13 @@
 	<dependencies>
 
 		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-annotations</artifactId>
+			<version>3.0-rc5</version>
+		</dependency>
+
+
+		<dependency>
 			<groupId>org.jsoup</groupId>
 			<artifactId>jsoup</artifactId>
 			<version>1.21.1</version>

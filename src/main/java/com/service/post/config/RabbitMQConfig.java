@@ -14,9 +14,11 @@ import org.springframework.context.annotation.Configuration;
 public class RabbitMQConfig {
   public static final String UPLOAD_QUEUE_NAME = "post.image.upload";
   public static final String DELETE_QUEUE_NAME = "post.image.delete";
+  public static final String UPLOADED_QUEUE_NAME = "post.image.uploaded";
   public static final String EXCHANGE = "post.image";
   public static final String UPLOAD_ROUTING_KEY = "post.image.upload";
   public static final String DELETE_ROUTING_KEY = "post.image.delete";
+  public static final String UPLOADED_ROUTING_KEY = "post.image.uploaded";
 
   @Bean
   public Queue uploadQueue() {
@@ -26,6 +28,11 @@ public class RabbitMQConfig {
   @Bean
   public Queue deleteQueue() {
     return new Queue(DELETE_QUEUE_NAME);
+  }
+
+  @Bean
+  public Queue uploadedQueue() {
+    return new Queue(UPLOADED_QUEUE_NAME, false);
   }
 
   @Bean
@@ -41,6 +48,11 @@ public class RabbitMQConfig {
   @Bean
   public Binding bindingDeleteQueue(Queue deleteQueue, TopicExchange exchange) {
     return BindingBuilder.bind(deleteQueue).to(exchange).with(DELETE_ROUTING_KEY);
+  }
+
+  @Bean
+  public Binding bindingUploadedQueue(Queue uploadedQueue, TopicExchange exchange) {
+    return BindingBuilder.bind(uploadedQueue).to(exchange).with(UPLOADED_ROUTING_KEY);
   }
 
   @Bean
