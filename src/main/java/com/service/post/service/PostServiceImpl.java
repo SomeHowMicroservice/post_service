@@ -387,6 +387,14 @@ public class PostServiceImpl implements PostService {
   }
 
   @Override
+  public String getPostContentById(String id) {
+    PostEntity post = postRepository.findById(id)
+        .orElseThrow(() -> new ResourceNotFoundException("không tìm thấy bài viết"));
+    
+    return post.getContent();
+  }
+
+  @Override
   @Transactional
   public void updatePost(UpdatePostRequest request) {
     PostEntity post = postRepository.findByIdAndDeletedPostFalse(request.getId())

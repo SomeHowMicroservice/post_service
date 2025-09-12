@@ -17,6 +17,7 @@ import com.service.post.GetOneRequest;
 import com.service.post.PermanentlyDeleteManyRequest;
 import com.service.post.PermanentlyDeleteOneRequest;
 import com.service.post.PostAdminDetailsResponse;
+import com.service.post.PostContentResponse;
 import com.service.post.PostsAdminResponse;
 import com.service.post.PostServiceGrpc.PostServiceImplBase;
 import com.service.post.entity.TopicEntity;
@@ -262,6 +263,21 @@ public class GrpcController extends PostServiceImplBase {
     } catch (Exception e) {
       responseObserver.onError(
           Status.INTERNAL.withDescription("lấy thống tin bài viết thất bại: " + e.getMessage()).asRuntimeException());
+    }
+  }
+
+  @Override
+  public void getPostContentById(GetOneRequest request, StreamObserver<PostContentResponse> responseObserver) {
+    try {
+      String content = postService.getPostContentById(request.getId());
+      PostContentResponse response = PostContentResponse.newBuilder().setContent(content).build();
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (ResourceNotFoundException e) {
+      responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asRuntimeException());
+    } catch (Exception e) {
+      responseObserver.onError(
+          Status.INTERNAL.withDescription("lấy nội dung bài viết thất bại: " + e.getMessage()).asRuntimeException());
     }
   }
 
