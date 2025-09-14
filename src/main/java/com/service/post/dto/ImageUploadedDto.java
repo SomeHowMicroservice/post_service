@@ -16,4 +16,7 @@ public class ImageUploadedDto {
 
   @JsonProperty("user_id")
   private String userId;
+
+  @JsonProperty("post_id")
+  private String postId;
 }

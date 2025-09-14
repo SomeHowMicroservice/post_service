@@ -80,7 +80,8 @@ public class Consumer {
         message.getTotalImages());
 
     if (qImgPending == 0) {
-      ImageUploadedDto uploadedMess = ImageUploadedDto.builder().service("post").userId(message.getUserId()).build();
+      ImageUploadedDto uploadedMess = ImageUploadedDto.builder().service("post").userId(message.getUserId())
+          .postId(message.getPostId()).build();
       publisher.sendUploadedAllImages(uploadedMess);
       redisService.deleteString(qImgRedisKey);
     }
