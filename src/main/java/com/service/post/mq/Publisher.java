@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 
 import com.service.post.config.RabbitMQConfig;
 import com.service.post.dto.Base64UploadDto;
+import com.service.post.dto.DeleteImageDto;
 import com.service.post.dto.ImageUploadedDto;
 
 import lombok.RequiredArgsConstructor;
@@ -18,8 +19,8 @@ public class Publisher {
     rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE, RabbitMQConfig.UPLOAD_ROUTING_KEY, message);
   }
 
-  public void sendDeleteImage(String fileId) {
-    rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE, RabbitMQConfig.DELETE_ROUTING_KEY, fileId);
+  public void sendDeleteImage(DeleteImageDto message) {
+    rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE, RabbitMQConfig.DELETE_ROUTING_KEY, message);
   }
 
   public void sendUploadedAllImages(ImageUploadedDto message) {

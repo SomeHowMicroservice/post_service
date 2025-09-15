@@ -3,6 +3,7 @@ package com.service.post.imagekit;
 import org.springframework.stereotype.Service;
 
 import com.service.post.dto.Base64UploadDto;
+import com.service.post.dto.DeleteImageDto;
 
 import io.imagekit.sdk.ImageKit;
 import io.imagekit.sdk.models.FileCreateRequest;
@@ -27,9 +28,10 @@ public class ImageKitServiceImpl implements ImageKitService {
   }
 
   @Override
-  public void deleteImage(String fileId) {
+  public void deleteImage(DeleteImageDto dto) {
     try {
-      imageKit.deleteFile(fileId);
+      imageKit.deleteFile(dto.getFileId());
+      imageKit.purgeCache(dto.getFileUrl());
     } catch (Exception e) {
       throw new RuntimeException("Xóa ảnh thất bại: " + e.getMessage());
     }

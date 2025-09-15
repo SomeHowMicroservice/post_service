@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import com.service.post.config.RabbitMQConfig;
 import com.service.post.dto.Base64UploadDto;
+import com.service.post.dto.DeleteImageDto;
 import com.service.post.dto.ImageUploadedDto;
 import com.service.post.entity.ImageEntity;
 import com.service.post.entity.PostEntity;
@@ -90,8 +91,8 @@ public class Consumer {
   }
 
   @RabbitListener(queues = RabbitMQConfig.DELETE_QUEUE_NAME)
-  public void deleteImageConsumer(String fileId) {
-    imageKitService.deleteImage(fileId);
-    log.info("Xóa hình ảnh có fileId: {} thành công", fileId);
+  public void deleteImageConsumer(DeleteImageDto message) {
+    imageKitService.deleteImage(message);
+    log.info("Xóa hình ảnh có Url: {} thành công", message.getFileUrl());
   }
 }
