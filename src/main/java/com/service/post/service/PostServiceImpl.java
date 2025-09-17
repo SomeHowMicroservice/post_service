@@ -36,7 +36,6 @@ import com.service.post.UpdatePostRequest;
 import com.service.post.UpdateTopicRequest;
 import com.service.post.common.SlugUtil;
 import com.service.post.dto.Base64UploadDto;
-import com.service.post.dto.DeleteImageDto;
 import com.service.post.entity.ImageEntity;
 import com.service.post.entity.PostEntity;
 import com.service.post.entity.TopicEntity;
@@ -468,9 +467,8 @@ public class PostServiceImpl implements PostService {
         if (!usedImageIds.contains(oldImage.getId())) {
           imageRepository.delete(oldImage);
 
-          if (oldImage.getFileId().trim() != "" && oldImage.getUrl().trim() != "") {
-            publisher.sendDeleteImage(
-                DeleteImageDto.builder().fileId(oldImage.getFileId()).fileUrl(oldImage.getUrl()).build());
+          if (oldImage.getFileId().trim() != "") {
+            publisher.sendDeleteImage(oldImage.getFileId());
           }
         }
       }
@@ -556,9 +554,7 @@ public class PostServiceImpl implements PostService {
     PostEntity post = postRepository.findByIdAndDeletedPostTrue(postId)
         .orElseThrow(() -> new ResourceNotFoundException("không tìm thấy bài viết"));
 
-    post.getImages().stream()
-        .map(image -> DeleteImageDto.builder().fileId(image.getFileId()).fileUrl(image.getUrl()).build())
-        .forEach(publisher::sendDeleteImage);
+    post.getImages().stream().map(ImageEntity::getFileId).forEach(publisher::sendDeleteImage);
 
     postRepository.delete(post);
   }
@@ -571,8 +567,7 @@ public class PostServiceImpl implements PostService {
       throw new ResourceNotFoundException("Có bài viết không tìm thấy");
     }
 
-    posts.stream().flatMap(post -> post.getImages().stream())
-        .map(image -> DeleteImageDto.builder().fileId(image.getFileId()).fileUrl(image.getUrl()).build())
+    posts.stream().flatMap(post -> post.getImages().stream()).map(ImageEntity::getFileId)
         .forEach(publisher::sendDeleteImage);
 
     postRepository.deleteAll(posts);
