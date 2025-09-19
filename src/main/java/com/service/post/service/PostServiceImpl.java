@@ -396,7 +396,7 @@ public class PostServiceImpl implements PostService {
 
   @Override
   @Transactional
-  public void updatePost(UpdatePostRequest request) {
+  public PostAdminDetailsResponse updatePost(UpdatePostRequest request) {
     PostEntity post = postRepository.findByIdAndDeletedPostFalse(request.getId())
         .orElseThrow(() -> new ResourceNotFoundException("không tìm thấy bài viết"));
 
@@ -496,6 +496,32 @@ public class PostServiceImpl implements PostService {
     }
 
     postRepository.save(post);
+
+    Set<String> userIdSet = new HashSet<>();
+    userIdSet.add(post.getCreatedById());
+    userIdSet.add(post.getUpdatedById());
+    List<String> userIds = new ArrayList<>(userIdSet);
+
+    UsersPublicResponse usersRes = userClient.getUsersPublicById(userIds);
+
+    Map<String, UserPublicResponse> usersMap = usersRes.getUsersList().stream()
+        .collect(Collectors.toMap(UserPublicResponse::getId, u -> u));
+
+    PostAdminDetailsResponse.Builder postBuilder = PostAdminDetailsResponse.newBuilder().setId(post.getId())
+        .setTitle(post.getTitle()).setSlug(post.getSlug()).setContent(post.getContent())
+        .setTopic(toSimpleTopicResponse(post.getTopic())).setIsPublished(post.isPublishedPost())
+        .setCreatedAt(post.getCreatedAt().toString()).setUpdatedAt(post.getUpdatedAt().toString());
+    if (post.getPublishedAt() != null) {
+      postBuilder.setPublishedAt(post.getPublishedAt().toString());
+    }
+    if (usersMap.containsKey(post.getCreatedById())) {
+      postBuilder.setCreatedBy(toBaseUserResponse(usersMap.get(post.getCreatedById())));
+    }
+    if (usersMap.containsKey(post.getUpdatedById())) {
+      postBuilder.setUpdatedBy(toBaseUserResponse(usersMap.get(post.getUpdatedById())));
+    }
+
+    return postBuilder.build();
   }
 
   @Override

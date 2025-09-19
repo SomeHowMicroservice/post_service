@@ -282,11 +282,10 @@ public class GrpcController extends PostServiceImplBase {
   }
 
   @Override
-  public void updatePost(UpdatePostRequest request, StreamObserver<UpdatedResponse> responseObserver) {
+  public void updatePost(UpdatePostRequest request, StreamObserver<PostAdminDetailsResponse> responseObserver) {
     try {
-      postService.updatePost(request);
-      UpdatedResponse response = UpdatedResponse.newBuilder().setSuccess(true).build();
-      responseObserver.onNext(response);
+      PostAdminDetailsResponse convertedPost = postService.updatePost(request);
+      responseObserver.onNext(convertedPost);
       responseObserver.onCompleted();
     } catch (ResourceNotFoundException e) {
       responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asRuntimeException());

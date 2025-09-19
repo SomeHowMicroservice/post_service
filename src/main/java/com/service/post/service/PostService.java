@@ -47,7 +47,7 @@ public interface PostService {
 
   String getPostContentById(String id);
 
-  void updatePost(UpdatePostRequest request);
+  PostAdminDetailsResponse updatePost(UpdatePostRequest request);
 
   void deletePost(DeleteOneRequest request);
 
